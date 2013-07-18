@@ -44,7 +44,8 @@ curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
 
 sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
 mkdir newrelic/logs/
-touch newrelic/logs/error.log
+touch newrelic/logs/agent.log
+touch newrelic/logs/daemon.log
 
 # update config files
 cp $LP_DIR/conf/httpd.conf $APACHE_PATH/conf
