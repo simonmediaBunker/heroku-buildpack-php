@@ -42,6 +42,11 @@ NEW_RELIC_URL="https://mediabunker.com/downloads/heroku/buildpack-php/newrelic.t
 echo "-----> Installing newrelic"
 curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
 
+# set new relic license key
+if [ "\${NEW_RELIC_LICENSE_KEY}" ]; then
+	sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
+fi
+
 # update config files
 cp $LP_DIR/conf/httpd.conf $APACHE_PATH/conf
 cp $LP_DIR/conf/php.ini php
@@ -49,11 +54,6 @@ cp $LP_DIR/conf/php.ini php
 # make php available on bin
 mkdir -p bin
 ln -s /app/php/bin/php bin/php
-
-# set new relic license key
-if [ "\${NEW_RELIC_LICENSE_KEY}" ]; then
-	sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
-fi
 
 cat >>boot.sh <<EOF
 for var in \`env|cut -f1 -d=\`; do
