@@ -59,7 +59,15 @@ done
 
 # set new relic license key, add \ before $ when issue with env variables is fixed
 #if [ "${NEW_RELIC_LICENSE_KEY}" ]; then
-	sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
+echo "replacing key"
+sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
+
+echo "adding key"
+echo "${NEW_RELIC_LICENSE_KEY}" >> /app/php/php.ini
+
+echo "adding bullshit"
+touch /app/bullshit
+echo "${NEW_RELIC_LICENSE_KEY}" >> /app/bullshit;
 #fi
 
 touch /app/apache/logs/error_log
