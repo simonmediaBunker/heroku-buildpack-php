@@ -42,6 +42,8 @@ NEW_RELIC_URL="https://mediabunker.com/downloads/heroku/buildpack-php/newrelic.t
 echo "-----> Installing newrelic"
 curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
 
+sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
+
 # update config files
 cp $LP_DIR/conf/httpd.conf $APACHE_PATH/conf
 cp $LP_DIR/conf/php.ini php
@@ -59,15 +61,7 @@ done
 
 # set new relic license key, add \ before $ when issue with env variables is fixed
 #if [ "${NEW_RELIC_LICENSE_KEY}" ]; then
-echo "replacing key"
-sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
-
-echo "adding key"
-echo "${NEW_RELIC_LICENSE_KEY}" >> /app/php/php.ini
-
-echo "adding bullshit"
-touch /app/bullshit
-echo "${NEW_RELIC_LICENSE_KEY}" >> /app/bullshit;
+#sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
 #fi
 
 touch /app/apache/logs/error_log
