@@ -58,9 +58,9 @@ for var in \`env|cut -f1 -d=\`; do
 done
 
 # set new relic license key, add \ before $ when issue with env variables is fixed
-if [ "${NEW_RELIC_LICENSE_KEY}" ]; then
+#if [ "${NEW_RELIC_LICENSE_KEY}" ]; then
 	sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
-fi
+#fi
 
 touch /app/apache/logs/error_log
 touch /app/apache/logs/access_log
