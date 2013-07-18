@@ -60,8 +60,8 @@ done
 echo 'license key = ${NEW_RELIC_LICENSE_KEY}'
 
 # set new relic license key
-if [ "\${NEW_RELIC_LICENSE_KEY}" ]; then
-	sed -i "s|REPLACE_WITH_REAL_KEY|\${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
+if [ "${NEW_RELIC_LICENSE_KEY}" ]; then
+	sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" /app/php/php.ini
 fi
 
 touch /app/apache/logs/error_log
