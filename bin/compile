@@ -52,9 +52,10 @@ curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 
 if ! [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
     NEW_RELIC_URL="https://mediabunker.com/downloads/heroku/buildpack-php/newrelic.tar.gz"
-    echo "-----> Found new relic license key, installing newrelic"
+    echo "-----> Found new relic license key, installing newrelic."
     curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
     
+    echo "-----> Setting new relic license key and app name ($NEW_RELIC_APP_NAME)"
     sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
     sed -i "s|REPLACE_WITH_REAL_APP_NAME|${NEW_RELIC_APP_NAME}|g" $LP_DIR/conf/php.ini
     
