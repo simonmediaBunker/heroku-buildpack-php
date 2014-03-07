@@ -8,7 +8,7 @@ set -e
 env_dir=$3
 if [ -d "$env_dir" ]; then
     for e in $(ls $env_dir); do
-        export "$e=$(cat $env_dir/$e)"
+        export "$e=$(cat $env_dir/$e)"        
         echo "#### found $e with value $(cat $env_dir/$e)"
         :
     done
@@ -48,7 +48,7 @@ PHP_URL="https://mediabunker.com/downloads/heroku/buildpack-php/php.tar.gz"
 echo "-----> Bundling PHP version $PHP_VERSION"
 curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 
-if ! [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
+if [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
     NEW_RELIC_URL="https://mediabunker.com/downloads/heroku/buildpack-php/newrelic.tar.gz"
     echo "-----> Found new relic license key, installing newrelic."
     curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
