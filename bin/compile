@@ -6,13 +6,13 @@ set -e
 
 #retrieve new relic env variables
 env_dir=$3
-echo "## env variable dir $env_dir"
 whitelist_regex=${2:-'^(NEW_RELIC_LICENSE_KEY|GIT_DIR|NEW_RELIC_APP_NAME)$'}
 blacklist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
 if [ -d "$env_dir" ]; then
     for e in $(ls $env_dir); do
         echo "$e" | grep -E "$whitelist_regex" | grep -qvE "$blacklist_regex" &&
-        export "$e=$(cat $env_dir/$e)"        
+        export "$e=$(cat $env_dir/$e)"
+        echo "#### found $e with value $(cat $env_dir/$e)"
         :
     done
 fi
