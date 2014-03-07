@@ -50,16 +50,20 @@ PHP_URL="https://mediabunker.com/downloads/heroku/buildpack-php/php.tar.gz"
 echo "-----> Bundling PHP version $PHP_VERSION"
 curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 
-NEW_RELIC_URL="https://mediabunker.com/downloads/heroku/buildpack-php/newrelic.tar.gz"
-echo "-----> Installing newrelic"
-curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
-
-sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
-sed -i "s|REPLACE_WITH_REAL_APP_NAME|${NEW_RELIC_APP_NAME}|g" $LP_DIR/conf/php.ini
-
-mkdir newrelic/logs/
-touch newrelic/logs/agent.log
-touch newrelic/logs/daemon.log
+if ! [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
+    NEW_RELIC_URL="https://mediabunker.com/downloads/heroku/buildpack-php/newrelic.tar.gz"
+    echo "-----> Found new relic license key, installing newrelic"
+    curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
+    
+    sed -i "s|REPLACE_WITH_REAL_KEY|${NEW_RELIC_LICENSE_KEY}|g" $LP_DIR/conf/php.ini
+    sed -i "s|REPLACE_WITH_REAL_APP_NAME|${NEW_RELIC_APP_NAME}|g" $LP_DIR/conf/php.ini
+    
+    mkdir newrelic/logs/
+    touch newrelic/logs/agent.log
+    touch newrelic/logs/daemon.log
+else
+    echo "-----> No new relic license key found. Set NEW_RELIC_LICENSE_KEY to use new relic!"
+fi
 
 # update config files
 cp $LP_DIR/conf/httpd.conf $APACHE_PATH/conf
