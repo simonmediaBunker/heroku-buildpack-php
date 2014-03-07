@@ -5,7 +5,7 @@
 set -e
 
 #retrieve new relic env variables
-env_dir=$1
+env_dir=$3
 echo "## env variable dir $env_dir"
 whitelist_regex=${2:-'^(NEW_RELIC_LICENSE_KEY|GIT_DIR|NEW_RELIC_APP_NAME)$'}
 blacklist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
