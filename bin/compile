@@ -53,7 +53,7 @@ echo "-----> Bundling PHP version $PHP_VERSION"
 curl --silent --max-time 60 --location "$PHP_URL" | tar xz
 
 if [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
-    NEW_RELIC_URL="https://s3.amazonaws.com/mediaBunker/newrelic-4.6.5.40.tar.gz"
+    NEW_RELIC_URL="https://s3.amazonaws.com/mediaBunker/newrelic-4.7.5.43.tar.gz"
     echo "-----> Found new relic license key, installing newrelic."
     curl --silent --max-time 60 --location "$NEW_RELIC_URL" | tar xz
     
