@@ -1,69 +1,63 @@
-Apache+PHP build pack
-========================
+# Heroku buildpack: PHP
 
-This is a build pack bundling PHP and Apache for Heroku apps.
+This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) for PHP applications.
 
-Configuration
--------------
+It uses Composer for dependency management, supports PHP or HHVM (experimental) as runtimes, and offers a choice of Apache2 or Nginx web servers.
 
-The config files are bundled with the build pack itself:
+## Usage
 
-* conf/httpd.conf
-* conf/php.ini
+You'll need to use at least an empty `composer.json` in your application.
 
-
-Pre-compiling binaries
-----------------------
-
-    # apache
-    mkdir /app
-    wget http://apache.cyberuse.com//httpd/httpd-2.2.19.tar.gz
-    tar xvzf httpd-2.2.19.tar.gz
-    cd httpd-2.2.19
-    ./configure --prefix=/app/apache --enable-rewrite
-    make
-    make install
-    cd ..
-    
-    # php
-    wget http://us2.php.net/get/php-5.3.6.tar.gz/from/us.php.net/mirror 
-    mv mirror php.tar.gz
-    tar xzvf php.tar.gz
-    cd php-5.3.6/
-    ./configure --prefix=/app/php --with-apxs2=/app/apache/bin/apxs --with-mysql --with-pdo-mysql --with-pgsql --with-pdo-pgsql --with-iconv --with-gd --with-curl=/usr/lib --with-config-file-path=/app/php --enable-soap=shared --with-openssl
-    make
-    make install
-    cd ..
-    
-    # php extensions
-    mkdir /app/php/ext
-    cp /usr/lib/libmysqlclient.so.15 /app/php/ext/
-    
-    # pear
-    apt-get install php5-dev php-pear
-    pear config-set php_dir /app/php
-    pecl install apc
-    mkdir /app/php/include/php/ext/apc
-    cp /usr/lib/php5/20060613/apc.so /app/php/ext/
-    cp /usr/include/php5/ext/apc/apc_serializer.h /app/php/include/php/ext/apc/
-    
-    
-    # package
-    cd /app
-    echo '2.2.19' > apache/VERSION
-    tar -zcvf apache.tar.gz apache
-    echo '5.3.6' > php/VERSION
-    tar -zcvf php.tar.gz php
+    heroku config:set BUILDPACK_URL=https://github.com/heroku/heroku-buildpack-php
+    echo '{}' > composer.json
+    git add .
+    git commit -am "add composer.json for PHP app detection"
 
 
-Hacking
--------
+Please refer to [Dev Center](https://devcenter.heroku.com/categories/php) for further usage instructions.
 
-To change this buildpack, fork it on Github. Push up changes to your fork, then create a test app with --buildpack <your-github-url> and push to it.
+## Development
 
+### Compiling Binaries
 
-Meta
-----
+The folder `support/build` contains [Bob](http://github.com/kennethreitz/bob-builder) build scripts for all binaries and dependencies.
 
-Created by Pedro Belo.
-Many thanks to Keith Rarick for the help with assorted Unix topics :)
+To get started with it, create an app on Heroku inside a clone of this repository, and set your S3 config vars:
+
+```term
+$ heroku create --buildpack https://github.com/heroku/heroku-buildpack-python
+$ heroku ps:scale web=0
+$ heroku config:set WORKSPACE_DIR=/app/support/build
+$ heroku config:set AWS_ACCESS_KEY_ID=<your_aws_key>
+$ heroku config:set AWS_SECRET_ACCESS_KEY=<your_aws_secret>
+$ heroku config:set S3_BUCKET=<your_s3_bucket_name>
+$ heroku config:set S3_PREFIX=<optional_s3_subfolder_to_upload_to>
+```
+
+Then, shell into an instance and run a build by giving the name of the formula inside `support/build`:
+
+```term
+$ heroku run bash
+Running `bash` attached to terminal... up, run.6880
+~ $ bob build php-5.5.11RC1
+
+Fetching dependencies... found 2:
+  - libraries/zlib
+  - libraries/libmemcached
+Building formula php-5.5.11RC1:
+    === Building PHP
+    Fetching PHP v5.5.11RC1 source...
+    Compiling PHP v5.5.11RC1...
+```
+
+If this works, run `bob deploy` instead of `bob build` to have the result uploaded to S3 for you.
+
+To speed things up drastically, it'll usually be a good idea to `heroku run bash --size PX` instead.
+
+If the dependencies are not yet deployed, you can do so by e.g. running `bob deploy libraries/zlib`.
+
+### Hacking
+
+To work on this buildpack, fork it on Github. You can then use [Anvil with a local buildpack](https://github.com/ddollar/anvil-cli#iterate-on-buildpacks-without-pushing-to-github) to easily iterate on changes without pushing each time.
+
+Alternatively, you may push changes to your fork (ideally in a branch if you'd like to submit pull requests), then create a test app with `heroku create --buildpack <your-github-url#branch>` and push to it.
