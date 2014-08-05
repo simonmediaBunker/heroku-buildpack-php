@@ -84,51 +84,8 @@ if [[ $STACK == "cedar-14" ]]; then
     runtimes=$(cd $BP_DIR/support/build; ls php-*)
 fi
 engine="php"
-if [[ -f "composer.json" ]]; then
-    if [[ ! -f "composer.lock" ]]; then
-        cat composer.json | python -c 'import sys, json; print sys.exit(any(key.count("/") for key in json.load(sys.stdin).get("require", {})))' 2> /dev/null || error "Your composer.json specifies dependencies, but no composer.lock
-was found, please check it into your repository along with composer.json!"
-    fi
-    
-    solver_payload=$(echo -n "$runtimes" | python -c '
-import sys, json
-ret = {}
-ret["packages"] = sys.stdin.read().splitlines()
-c_json = dict(json.load(open("composer.json"))) # wrap in dict() to prevent simple errors with {} vs []
-ret["json"] = {k: c_json.get(k, None) for k in ["minimum-stability", "prefer-stable"]}
-ret["json"]["platform"] = {k: dict(c_json.get("require", {})).get(k, None) for k in ["php", "hhvm"]} # wrap in dict() to prevent simple errors with {} vs []
-try:
-    c_lock = json.load(open("composer.lock"))
-    ret["lock"] = {k: c_lock.get(k, None) for k in ["minimum-stability", "prefer-stable", "stability-flags"]}
-    ret["lock"]["platform"] = {k: dict(c_lock.get("platform", {})).get(k, None) for k in ["php", "hhvm"]} # wrap in dict() to prevent simple errors with {} vs []
-except IOError:
-    ret["lock"] = None
-print json.dumps(ret)
-' 2> /dev/null) || error "Couldn't parse composer.lock; it must be non-empty and valid JSON.
-Run 'composer update' to have it re-generated or removed by Composer."
-    solver_result=$(echo -n "$solver_payload" | curl --silent --location --fail -H'Content-Type: application/json' -d @- "http://php-runtime-version-selector.herokuapp.com/resolve?default_runtime=php") || error "Failed to resolve runtime requirements.
-If the issue persists, please contact support."
-    while IFS="|" read runtime_name runtime_source runtime_constraint runtime_result; do
-        if [[ $runtime_result ]]; then
-            if [[ $runtime_source == "default" ]]; then
-                status "No runtime requirements in composer.json, defaulting to ${runtime_name^^} $runtime_result."
-            else
-                status "Resolved $runtime_source requirement for ${runtime_name^^} $runtime_constraint to version $runtime_result."
-            fi
-            if [[ $runtime_name == "php" ]]; then
-                PHP_VERSION="$runtime_result"
-            elif [[ $runtime_name == "hhvm" ]]; then
-                HHVM_VERSION="$runtime_result"
-                engine=hhvm
-            fi
-        else
-            error "Could not resolve $runtime_source requirement for ${runtime_name^^} $runtime_constraint,
-please adjust the version selector. The following runtimes are available:
-$(echo $runtimes | fold -s -w 73)"
-        fi
-    done <<<"$solver_result"
-fi
 
+PHP_VERSION="5.5.15"
 status "Installing system packages..."
 
 # we need to run things in here, set it up!
@@ -181,35 +138,9 @@ echo $NGINX_VERSION > $CACHE_DIR/nginx_version
 # handle extensions for PHP
 if [[ "${PHP_VERSION}" ]]; then
     status "Installing PHP extensions..."
-    install_ext "opcache" "automatic"
-    exts=
-    if [[ -f "composer.json" ]]; then
-        exts=$(cat composer.json | python -c 'from __future__ import print_function; import sys, json; { print(key[4:]) for key in json.load(sys.stdin)["require"] if key.startswith("ext-")}' 2> /dev/null || true)
-    fi
-    newrelic_installed=false
-    if [[ -n "$exts" ]]; then
-        while read -r ext; do
-            if [[ "$ext" == "newrelic" ]]; then
-                newrelic_installed=true
-            fi
-            install_ext "$ext" "composer.json"
-        done <<< "$exts"
-    fi
-    # special treatment for New Relic; we enable it if we detect a license key for it
-    # otherwise users would have to have it in their require section, which is annoying in development environments
-    NEW_RELIC_LICENSE_KEY=${NEW_RELIC_LICENSE_KEY:-}
-    if [[ $newrelic_installed == false && -n "$NEW_RELIC_LICENSE_KEY" ]]; then
-        newrelic_installed=true
-        install_ext "newrelic" "add-on detected"
-    fi
+    install_ext "opcache" "automatic" 
+    install_ext "redis" "automatic" 
     
-    if [[ $newrelic_installed == true ]]; then
-        # newrelic logs to stderr, and that mangles our build output and seems to cause calls to Composer to potentially hang, so we disable it for the duration of this build
-        echo "newrelic.enabled = 0
-newrelic.loglevel = error
-newrelic.daemon.dont_launch = 3
-newrelic.daemon.loglevel = error" > "${BUILD_DIR}/.heroku/php/etc/php/conf.d/ext-newrelic-off.ini"
-    fi
 fi
 
 status "Installing dependencies..."
@@ -233,15 +164,6 @@ fi
 # tail to get rid of outdated version warnings (Composer sends those to STDOUT instead of STDERR)
 composer --version 2> /dev/null | tail -n 1 | indent
 
-# throw a notice if people have added their vendor dir to Git; that's bad practice and makes everything slow and cluttered
-if [[ -e "$(composer config vendor-dir)" ]]; then
-    warning "You have put Composer's vendor directory under version control.
-That directory should not be in your Git repository; only composer.json
-and composer.lock should be added, with Composer handling installation.
-Please 'git rm --cached $(composer config vendor-dir)/' to remove the folder from your index,
-then add '/$(composer config vendor-dir)/' to your '.gitignore' list to remove this notice.
-For more information, refer to the Composer FAQ: http://bit.ly/1rlCSZU"
-fi
 
 # handle custom oauth keys
 COMPOSER_GITHUB_OAUTH_TOKEN=${COMPOSER_GITHUB_OAUTH_TOKEN:-}
@@ -266,7 +188,7 @@ fi
 unset COMPOSER_GITHUB_OAUTH_TOKEN
 
 # install dependencies
-composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction | indent
+#composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction | indent
 
 composer show --installed heroku/heroku-buildpack-php &> /dev/null && error "Your composer.json requires package 'heroku/heroku-buildpack-php'.
 This package may only be used as a dev dependency (in 'require-dev')!"
@@ -288,55 +210,13 @@ mkdir -p "$BUILD_DIR/$composer_bindir"
 # figure out shortest relative path from vendor/heroku/heroku-buildpack-php to vendor/bin (or whatever the bin dir is)
 relbin=$(python -c "import os.path; print os.path.relpath('$hbpdir', '$composer_bindir')")
 # collect bin names from composer.json
-relbins=$(cat $BP_DIR/composer.json | python -c 'from __future__ import print_function; import sys, json; { print(sys.argv[1]+"/"+bin) for bin in json.load(sys.stdin)["bin"] }' $relbin)
+#relbins=$(cat $BP_DIR/composer.json | python -c 'from __future__ import print_function; import sys, json; { print(sys.argv[1]+"/"+bin) for bin in json.load(sys.stdin)["bin"] }' $relbin)
 # link to bins
 cd $BUILD_DIR/$composer_bindir
-ln -s $relbins .
+# ln -s $relbins .
 cd $BUILD_DIR
 
 # Update the PATH
-mkdir -p $BUILD_DIR/.profile.d
-cat > $BUILD_DIR/.profile.d/php.sh <<"EOF"
-export PATH="$HOME/.heroku/php/bin:$HOME/.heroku/php/sbin:$PATH"
-EOF
-if [[ $engine == "hhvm" ]]; then
-    cat > $BUILD_DIR/.profile.d/hhvm.sh <<"EOF"
-export PATH="$PATH:$HOME/.heroku/php/usr/bin"
-hhvm() { LD_LIBRARY_PATH=$HOME/.heroku/php/usr/lib/hhvm:$HOME/.heroku/php/usr/lib `which hhvm` "$@"; }
-export -f hhvm
-EOF
-fi
-# Alias composer if needed
-if [[ -f "composer.phar" ]]; then
-    cat > $BUILD_DIR/.profile.d/composer.sh <<EOF
-composer() {
-    $engine composer.phar "\$@"
-}
-export -f composer
-EOF
-else
-    cat > $BUILD_DIR/.profile.d/composer.sh <<EOF
-composer() {
-    $engine \`which composer\` "\$@"
-}
-export -f composer
-EOF
-fi
-# new relic defaults
-cat > $BUILD_DIR/.profile.d/newrelic.sh <<"EOF"
-if [[ -n "$NEW_RELIC_LICENSE_KEY" ]]; then
-    export NEW_RELIC_APP_NAME=${NEW_RELIC_APP_NAME:-"PHP Application on Heroku"}
-    export NEW_RELIC_LOG=${NEW_RELIC_LOG:-"stderr"}
-    export NEW_RELIC_LOG_LEVEL=${NEW_RELIC_LOG_LEVEL:-"warning"}
-fi
-EOF
+echo export PATH="/app/.heroku/php/bin:/app/.heroku/php/sbin:$PATH" | sudo tee -a /etc/environment
+export PATH="/app/.heroku/php/bin:/app/.heroku/php/sbin:$PATH"
 
-if [[ ! -f "Procfile" ]]; then
-    bindir=$(composer config bin-dir 2> /dev/null | tail -n 1) # tail, as composer echos outdated version warnings to STDOUT
-    echo "web: $bindir/heroku-$engine-apache2" > Procfile
-    notice_inline "No Procfile, defaulting to 'web: $bindir/heroku-$engine-apache2'"
-fi
-
-# cleanup
-# re-enable newrelic in case we installed but disabled it for the duration of the build
-rm -f "${BUILD_DIR}/.heroku/php/etc/php/conf.d/ext-newrelic-off.ini"
