@@ -218,5 +218,3 @@ cd $BUILD_DIR
 
 # Update the PATH
 echo export PATH="/app/.heroku/php/bin:/app/.heroku/php/sbin:$PATH" | sudo tee -a /etc/environment
-export PATH="/app/.heroku/php/bin:/app/.heroku/php/sbin:$PATH"
-
