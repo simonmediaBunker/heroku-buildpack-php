@@ -140,6 +140,7 @@ if [[ "${PHP_VERSION}" ]]; then
     status "Installing PHP extensions..."
     install_ext "opcache" "automatic" 
     install_ext "redis" "automatic" 
+    install_ext "sqlite3 automatic"
     
 fi
 
